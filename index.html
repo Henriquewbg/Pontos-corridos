@@ -6,7 +6,6 @@
 <link rel="manifest" href="manifest.json">
 <title>Tabela Stackfall</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
-
 <style>
 body {
   font-family: 'Poppins', sans-serif;
@@ -18,16 +17,14 @@ body {
   min-height: 100vh;
   padding: 15px;
 }
-
 .container {
   max-width: 600px;
   margin: auto;
   background: white;
   padding: 20px;
   border-radius: 18px;
-  box-shadow: 0 4px 15px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
 }
-
 h1 {
   text-align: center;
   margin: 5px 0 15px;
@@ -35,28 +32,22 @@ h1 {
   color: #60067e;
   font-size: clamp(20px, 5vw, 28px);
 }
-
 table { width: 100%; border-collapse: collapse; }
-
 th {
   background: linear-gradient(135deg, #7409d8, #2a0355);
   color: white;
   padding: 12px 8px;
 }
-
 td {
   padding: 14px 6px;
   text-align: center;
   font-size: 18px;
 }
-
 tr:nth-child(even) { background: #f8faff; }
-
 .posicao { font-weight: bold; }
 .ouro { color: #f4b400; }
 .prata { color: #9aa0a6; }
 .bronze { color: #cd7f32; }
-
 input {
   width: 70px;
   padding: 8px;
@@ -67,12 +58,9 @@ input {
 }
 </style>
 </head>
-
 <body>
-
 <div class="container">
   <h1>🏆 Tabela Stackfall</h1>
-
   <table>
     <thead>
       <tr>
@@ -85,9 +73,7 @@ input {
   </table>
 </div>
 
-<!-- 🔥 FIREBASE -->
 <script type="module">
-
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -109,9 +95,10 @@ const padrao = [
 ];
 
 let jogadores = padrao;
+let salvandoLocalmente = false; // 🔒 evita loop de re-render ao salvar
 
-/* 🔄 Sincronização em tempo real */
 onSnapshot(ref, (snap) => {
+  if (salvandoLocalmente) return; // ignora echo do próprio save
   if (snap.exists()) {
     jogadores = snap.data().lista;
   } else {
@@ -121,7 +108,9 @@ onSnapshot(ref, (snap) => {
 });
 
 async function salvar() {
+  salvandoLocalmente = true;
   await setDoc(ref, { lista: jogadores });
+  setTimeout(() => { salvandoLocalmente = false; }, 500);
 }
 
 function medalhaClasse(pos) {
@@ -137,32 +126,37 @@ function ordenar() {
 
 function render() {
   ordenar();
-
   const tbody = document.getElementById("tbody");
   tbody.innerHTML = "";
 
   jogadores.forEach((jogador, index) => {
     const tr = document.createElement("tr");
 
-    tr.innerHTML = `
-      <td class="posicao ${medalhaClasse(index)}">${index + 1}º</td>
-      <td><strong>${jogador.nome}</strong></td>
-      <td>
-        <input type="number" value="${jogador.pontos}"
-        onchange="editarPontos(${index}, this.value)">
-      </td>
-    `;
+    const tdPos = document.createElement("td");
+    tdPos.className = `posicao ${medalhaClasse(index)}`;
+    tdPos.textContent = `${index + 1}º`;
 
+    const tdNome = document.createElement("td");
+    tdNome.innerHTML = `<strong>${jogador.nome}</strong>`;
+
+    const tdPontos = document.createElement("td");
+    const input = document.createElement("input");
+    input.type = "number";
+    input.value = jogador.pontos;
+
+    // ✅ addEventListener dentro do módulo — sem depender de escopo global
+    input.addEventListener("change", () => {
+      jogadores[index].pontos = Number(input.value);
+      salvar();
+    });
+
+    tdPontos.appendChild(input);
+    tr.appendChild(tdPos);
+    tr.appendChild(tdNome);
+    tr.appendChild(tdPontos);
     tbody.appendChild(tr);
   });
 }
-
-window.editarPontos = function(i, valor) {
-  jogadores[i].pontos = Number(valor);
-  salvar();
-};
-
 </script>
-
 </body>
 </html>
